@@ -1450,7 +1450,7 @@
                         <span class="gradient-text">LISTENING COMPETITION</span>
                     </h1>
                     <p class="hero-desc">
-                        Unlock your mental potential! Register online, complete payment, and get your official competition Hall Ticket instantly.
+                        Unlock your mental potential! Register online, complete payment, and your Hall Ticket will be prepared by our Admin Team after payment verification.
                     </p>
 
                     <!-- CONTACT NUMBER ON HOME PAGE -->
@@ -1547,7 +1547,7 @@
                 </div>
                 <div class="step-connector"></div>
                 <div class="step-pill" id="pillStep3">
-                    <span>3</span> Hall Ticket
+                    <span>3</span> Admin Hall Ticket
                 </div>
             </div>
 
@@ -1663,7 +1663,7 @@
             </div>
 
             <p style="color: var(--text-muted); font-size: 0.95rem; margin-bottom: 1.25rem;">
-                Scan QR code to complete your registration payment.
+                Scan the QR code to complete your ₹200 registration payment. After payment, submit this form. Your Hall Ticket will NOT be shown to you here. It will be prepared from the Admin Panel after payment verification.
             </p>
 
             <!-- QR Code Display -->
@@ -1692,8 +1692,8 @@
             </div>
 
             <!-- Complete Action Button -->
-            <button type="button" class="btn btn-success" style="width: 100%; padding: 1rem; font-size: 1.05rem;" onclick="showContactOverlayThenTicket()">
-                <span>I Have Completed Payment — Get Hall Ticket 🎟️</span>
+            <button type="button" class="btn btn-success" style="width: 100%; padding: 1rem; font-size: 1.05rem;" onclick="confirmPaymentAndGenerateTicket()">
+                <span>I Have Completed Payment — Submit for Verification ✓</span>
             </button>
         </div>
     </div>
@@ -1707,8 +1707,8 @@
             
             <div class="modal-header-success">
                 <div class="success-icon-badge">✓</div>
-                <h2>Registration Successful!</h2>
-                <p>Your registration has been completed successfully. Please keep your hall ticket safely.</p>
+                <h2>Hall Ticket Queued Successfully!</h2>
+                <p>The student will NOT receive the Hall Ticket on this page. The registration is now available in the Admin Panel for verification and Hall Ticket creation.</p>
             </div>
 
             <!-- Landscape Rectangular Hall Ticket Visual Container -->
@@ -1958,6 +1958,7 @@
                                     <th>Father Mobile</th>
                                     <th>Mother Mobile</th>
                                     <th>Date/Time</th>
+                                    <th>Payment Status</th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
@@ -2250,30 +2251,56 @@
             }, 500);
         }
 
-        // Step 2 -> Step 3: Confirm Payment & Save Student Record & Show Hall Ticket
+        // Step 2: Student confirms payment. NO Hall Ticket is shown to the student.
         function confirmPaymentAndGenerateTicket() {
-            if (!currentDraftRecord) return;
+            if (!currentDraftRecord) {
+                showToast('Registration details are missing. Please register again.', 'error');
+                return;
+            }
+
+            currentDraftRecord.paymentStatus = 'PAYMENT CLAIMED - VERIFY';
+            currentDraftRecord.ticketStatus = 'WAITING FOR ADMIN';
+            currentDraftRecord.ticketCreated = false;
 
             saveRegistration(currentDraftRecord);
-            currentStudentData = currentDraftRecord;
 
             closeModal('paymentModal');
-
-            // Reset registration form
             document.getElementById('studentRegistrationForm').reset();
 
-            // Update Step Pill UI
             document.getElementById('pillStep2').classList.remove('active');
             document.getElementById('pillStep2').classList.add('completed');
             document.getElementById('pillStep3').classList.add('active');
 
-            // Display & Show Hall Ticket Modal
-            displayHallTicket(currentStudentData);
-            openModal('hallTicketModal');
-            showToast('Registration Completed! Your Hall Ticket is ready.', 'success');
+            // IMPORTANT: Never display or download the Hall Ticket for the student.
+            showStudentCompletionMessage(currentDraftRecord);
+            currentDraftRecord = null;
+        }
 
-            // Attempt silent save if folder selected
-            autoSaveToWindowsFolder(currentStudentData);
+        function showStudentCompletionMessage(record) {
+            const msg = document.createElement('div');
+            msg.className = 'modal-overlay active';
+            msg.id = 'studentCompletionModal';
+            msg.innerHTML = `
+                <div class="modal-container" style="max-width:560px;text-align:center;">
+                    <button class="modal-close" onclick="document.getElementById('studentCompletionModal')?.remove()">✕</button>
+                    <div style="width:76px;height:76px;margin:0 auto 1rem;background:rgba(16,185,129,.12);color:#059669;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:2.5rem;">✓</div>
+                    <h2 style="margin-bottom:.6rem;">Registration Submitted Successfully!</h2>
+                    <p style="color:var(--text-muted);margin-bottom:1rem;">Your payment details have been submitted for verification.</p>
+                    <div style="background:#eff6ff;border:2px solid #3b82f6;border-radius:14px;padding:1rem;margin:1rem 0;">
+                        <div style="font-size:.8rem;color:#1e40af;font-weight:700;text-transform:uppercase;">Registration Number</div>
+                        <div style="font-size:1.5rem;font-weight:800;color:#0f2942;font-family:monospace;">${escapeHtml(record.regNo)}</div>
+                    </div>
+                    <div style="background:#fff7ed;border:1px solid #fdba74;border-radius:12px;padding:1rem;color:#9a3412;font-weight:700;">
+                        🎟️ Your Hall Ticket is created/queued in our Admin Panel.
+                        <br><span style="font-weight:500;font-size:.9rem;">It will be issued by the Admin Team after payment verification.</span>
+                    </div>
+                    <button class="btn btn-primary" style="margin-top:1.25rem;width:100%;" onclick="document.getElementById('studentCompletionModal')?.remove();document.getElementById('registration').scrollIntoView({behavior:'smooth'});">Done</button>
+                </div>`;
+            document.body.appendChild(msg);
+        }
+
+        function escapeHtml(value) {
+            return String(value ?? '').replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','\"':'&quot;'}[c]));
         }
 
         // Display Hall Ticket Data in Modal Card
@@ -2598,7 +2625,7 @@
             });
 
             if (filtered.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="11" style="text-align: center; color: var(--text-muted); padding: 2rem;">No student records found.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="12" style="text-align: center; color: var(--text-muted); padding: 2rem;">No student records found.</td></tr>`;
                 return;
             }
 
@@ -2615,8 +2642,13 @@
                     <td>${r.motherMobile}</td>
                     <td><small style="color: var(--text-muted);">${r.registeredAt}</small></td>
                     <td>
+                        <span style="display:inline-block;padding:.35rem .65rem;border-radius:999px;font-size:.72rem;font-weight:800;${r.paymentStatus === 'PAID' ? 'background:#dcfce7;color:#166534;' : 'background:#fff7ed;color:#9a3412;'}">
+                            ${escapeHtml(r.paymentStatus || 'PAYMENT CLAIMED - VERIFY')}
+                        </span>
+                    </td>
+                    <td>
                         <div class="table-actions">
-                            <button class="btn btn-secondary btn-sm" title="View Ticket" onclick="viewTicketForStudent('${r.regNo}')">👁️ Ticket</button>
+                            <button class="btn btn-success btn-sm" title="Create and save Hall Ticket" onclick="viewTicketForStudent('${r.regNo}')">🎟️ Create & Save</button>
                             <button class="btn btn-secondary btn-sm" title="Delete" style="color: var(--accent-red);" onclick="deleteRegistration('${r.regNo}')">❌</button>
                         </div>
                     </td>
@@ -2625,13 +2657,25 @@
         }
 
         function viewTicketForStudent(regNo) {
-            const list = getStoredRegistrations();
-            const found = list.find(r => r.regNo === regNo);
-            if (found) {
-                currentStudentData = found;
-                displayHallTicket(found);
-                openModal('hallTicketModal');
+            if (localStorage.getItem('LIMCO_ADMIN_AUTH') !== 'TRUE') {
+                showToast('Admin login required to create Hall Tickets.', 'warning');
+                return;
             }
+            const list = getStoredRegistrations();
+            const index = list.findIndex(r => r.regNo === regNo);
+            if (index === -1) return;
+
+            const found = list[index];
+            currentStudentData = found;
+            found.ticketCreated = true;
+            found.ticketStatus = 'CREATED BY ADMIN';
+            list[index] = found;
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+
+            displayHallTicket(found);
+            openModal('hallTicketModal');
+            renderAdminTable();
+            showToast('Hall Ticket created in Admin Panel. Use Save PNG to save it.', 'success');
         }
 
         function deleteRegistration(regNo) {
@@ -2745,34 +2789,13 @@
         // CONTACT OVERLAY + PROCEED TO TICKET
         // ==========================================
         function showContactOverlayThenTicket() {
-            if (!currentDraftRecord) return;
-            saveRegistration(currentDraftRecord);
-            currentStudentData = currentDraftRecord;
-
-            closeModal('paymentModal');
-
-            // Update Step Pill UI
-            document.getElementById('pillStep2').classList.remove('active');
-            document.getElementById('pillStep2').classList.add('completed');
-            document.getElementById('pillStep3').classList.add('active');
-
-            // Reset form
-            document.getElementById('studentRegistrationForm').reset();
-
-            // Show big contact overlay
-            const overlay = document.getElementById('contactOverlay');
-            overlay.style.display = 'flex';
+            // Legacy compatibility: students are never shown a Hall Ticket.
+            confirmPaymentAndGenerateTicket();
         }
 
         function proceedToHallTicket() {
-            const overlay = document.getElementById('contactOverlay');
-            overlay.style.display = 'none';
-
-            displayHallTicket(currentStudentData);
-            openModal('hallTicketModal');
-            showToast('Registration Completed! Your Hall Ticket is ready.', 'success');
-
-            autoSaveToWindowsFolder(currentStudentData);
+            // Student-side legacy action is intentionally disabled.
+            showToast('Hall Tickets are issued from the Admin Panel only.', 'info');
         }
 
         // ==========================================
